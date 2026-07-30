@@ -40,7 +40,6 @@ class NTCTicketAppPro:
         ttk.Label(f1, text="Header Line 1:").grid(row=1, column=0, sticky="w", pady=2)
         ttk.Entry(f1, textvariable=self.header_1_var, width=28).grid(row=1, column=1, pady=2)
 
-        # --- UPDATED: Header Line 2 is now a Combobox ---
         ttk.Label(f1, text="Header Line 2:").grid(row=2, column=0, sticky="w", pady=2)
         header_2_cb = ttk.Combobox(
             f1, 
@@ -176,7 +175,7 @@ class NTCTicketAppPro:
                 if os.path.exists(logo_path):
                     try:
                         img = Image.open(logo_path)
-                        max_width = 110  # Shrunk significantly down to 110 pixels
+                        max_width = 110  # Shrunk down to 110 pixels
                         
                         if img.width > max_width:
                             ratio = max_width / float(img.width)
@@ -205,8 +204,8 @@ class NTCTicketAppPro:
             # Queue Number Label
             p.text("QUEUE NO.\n")
 
-            # Ticket Number (Now using Font B double-height/width instead of the massive Font A)
-            p.set(align='center', font='b', bold=True, double_height=True, double_width=True)
+            # --- UPDATED: Ticket Number bumped back up to Font A to make it pop ---
+            p.set(align='center', font='a', bold=True, double_height=True, double_width=True)
             p.text(num_str + "\n")
 
             # --- Hard Reset Size ---
@@ -222,7 +221,7 @@ class NTCTicketAppPro:
             # Bottom Border
             p.text(("=" * w) + "\n")
 
-            # Feed lines & Cut (Reduced feed from 3 lines to 2 to save paper)
+            # Feed lines & Cut 
             p.text("\n\n")
             p.cut()
 
