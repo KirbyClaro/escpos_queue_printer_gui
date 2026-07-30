@@ -58,7 +58,15 @@ class NTCTicketApp:
         btn_frame = ttk.Frame(self.root, padding=10)
         btn_frame.pack(fill="x", padx=15)
 
-        print_btn = tk.Button(btn_frame, text="🖨️ PRINT TICKET", bg="#0078D4", fg="white", font=("Arial", 12, "bold"), padding=10, command=self.print_ticket)
+        print_btn = tk.Button(
+            btn_frame, 
+            text="🖨️ PRINT TICKET", 
+            bg="#0078D4", 
+            fg="white", 
+            font=("Arial", 12, "bold"), 
+            pady=10, 
+            command=self.print_ticket
+        )
         print_btn.pack(fill="x")
 
         # Live Text Preview Frame
