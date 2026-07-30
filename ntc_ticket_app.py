@@ -10,7 +10,7 @@ class NTCTicketApp:
         self.root.resizable(False, False)
 
         # Variables
-        self.printer_name_var = tk.StringVar(value="XP-58C")
+        self.printer_name_var = tk.StringVar(value="XP-58C-Licensing")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.ticket_num_var = tk.IntVar(value=1)
@@ -126,7 +126,7 @@ class NTCTicketApp:
         try:
             # Initialize Win32Raw Printer
             p = Win32Raw(printer_name)
-            p.open(job_name="NTC Ticket Print")
+            p.open(job_name="NTC Ticket Print")  # Open spooler connection
             
             line_width = 32
             border_line = "#" * line_width
@@ -162,8 +162,10 @@ class NTCTicketApp:
             p.text("\n\n")
             p.cut()
 
+            # Close spooler handle so Windows prints immediately
             p.close()
 
+            # Auto increment ticket number on success
             if self.auto_increment_var.get():
                 self.increment_num()
 
