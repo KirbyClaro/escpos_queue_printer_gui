@@ -91,7 +91,7 @@ class NTCTicketAppPro:
         f4 = ttk.LabelFrame(self.root, text=" Layout Preview (Monospace) ", padding=10)
         f4.pack(fill="both", expand=True, padx=15, pady=5)
 
-        self.preview_text = tk.Text(f4, height=14, width=34, font=("Consolas", 9), bg="#F8F9FA")
+        self.preview_text = tk.Text(f4, height=14, width=44, font=("Consolas", 9), bg="#F8F9FA")
         self.preview_text.pack(fill="both", expand=True)
 
         # Triggers
@@ -112,7 +112,7 @@ class NTCTicketAppPro:
         self.ticket_num_var.set(1)
 
     def generate_preview_text(self):
-        w = 32
+        w = 42 # Font B fits 42 characters across 58mm paper
         border_top = "=" * w
         border_dashed = "-" * w
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
@@ -120,8 +120,7 @@ class NTCTicketAppPro:
 
         lines = [border_top]
         if self.logo_enabled_var.get():
-            lines.append("[ LOGO PREVIEW (TEXT ONLY) ]".center(w))
-            lines.append("")
+            lines.append("[ LOGO PREVIEW ]".center(w))
 
         if self.header_1_var.get():
             lines.append(self.header_1_var.get().center(w))
@@ -132,9 +131,7 @@ class NTCTicketAppPro:
         lines.append(now_str.center(w))
         lines.append(border_dashed)
         lines.append("QUEUE NO.".center(w))
-        lines.append("")
         lines.append(num_str.center(w))
-        lines.append("")
         lines.append(border_dashed)
 
         if self.footer_1_var.get():
@@ -163,14 +160,16 @@ class NTCTicketAppPro:
         try:
             p = Dummy()
             p.set(align='center')
+            
+            w = 42 # 42 columns for Font B
 
-            # --- Smart Image Resizing (Reduced size) ---
+            # --- Smart Image Resizing (Extremely Small) ---
             if self.logo_enabled_var.get():
                 logo_path = self.logo_file_var.get().strip()
                 if os.path.exists(logo_path):
                     try:
                         img = Image.open(logo_path)
-                        max_width = 160  # Decreased from 220 to make the logo smaller
+                        max_width = 110  # Shrunk significantly down to 110 pixels
                         
                         if img.width > max_width:
                             ratio = max_width / float(img.width)
@@ -178,57 +177,52 @@ class NTCTicketAppPro:
                             img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
                         
                         p.image(img)
-                        p.text("\n")
                     except Exception as img_err:
                         print(f"Logo resizing/printing error: {img_err}")
 
-            # Top Border (Font A - Standard Size)
-            p.set(align='center', font='a', bold=False)
-            p.text(("=" * 32) + "\n")
+            # Top Border (Font B - Compact)
+            p.set(align='center', font='b', bold=False)
+            p.text(("=" * w) + "\n")
 
-            # Headers (Font A)
-            p.set(align='center', font='a', bold=self.bold_var.get())
+            # Headers (Font B)
+            p.set(align='center', font='b', bold=self.bold_var.get())
             if h1: p.text(h1 + "\n")
             if h2: p.text(h2 + "\n")
 
-            # Date Line (Borders in Font A, Date Text in Font B for compact size)
-            p.set(align='center', font='a', bold=False)
-            p.text(("-" * 32) + "\n")
+            # Date Line (Font B)
             p.set(align='center', font='b', bold=False)
+            p.text(("-" * w) + "\n")
             p.text(now_str + "\n")
-            p.set(align='center', font='a', bold=False)
-            p.text(("-" * 32) + "\n")
+            p.text(("-" * w) + "\n")
 
             # Queue Number Label
-            p.text("QUEUE NO.\n\n")
+            p.text("QUEUE NO.\n")
 
-            # Large Ticket Number
-            p.set(align='center', font='a', bold=True, double_height=True, double_width=True)
-            p.text(num_str + "\n\n")
+            # Ticket Number (Now using Font B double-height/width instead of the massive Font A)
+            p.set(align='center', font='b', bold=True, double_height=True, double_width=True)
+            p.text(num_str + "\n")
 
-            # --- Hard Reset Size & Compact Footers ---
-            p.text("\x1d!\x00") # Send raw hardware reset (GS ! 0) to guarantee text shrinks back
+            # --- Hard Reset Size ---
+            p.text("\x1d!\x00") 
             
-            p.set(align='center', font='a', bold=False)
-            p.text(("-" * 32) + "\n")
-            
-            # Print footer instructions in smaller Font B
             p.set(align='center', font='b', bold=False)
+            p.text(("-" * w) + "\n")
+            
+            # Print footer instructions
             if f1: p.text(f1 + "\n")
             if f2: p.text(f2 + "\n")
             
-            # Bottom Border (Font A)
-            p.set(align='center', font='a', bold=False)
-            p.text(("=" * 32) + "\n")
+            # Bottom Border
+            p.text(("=" * w) + "\n")
 
-            # Feed lines & Cut
-            p.text("\n\n\n")
+            # Feed lines & Cut (Reduced feed from 3 lines to 2 to save paper)
+            p.text("\n\n")
             p.cut()
 
-            # 2. Extract raw bytes
+            # Extract raw bytes
             raw_data = p.output
 
-            # 3. Send to Spooler
+            # Send to Spooler
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
