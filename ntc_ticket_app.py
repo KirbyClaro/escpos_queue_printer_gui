@@ -3,6 +3,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox
 import win32print
+from escpos.printer import Dummy
 
 class NTCTicketAppPro:
     def __init__(self, root):
@@ -16,7 +17,7 @@ class NTCTicketAppPro:
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.bold_var = tk.BooleanVar(value=True)
-        self.logo_enabled_var = tk.BooleanVar(value=False)
+        self.logo_enabled_var = tk.BooleanVar(value=True)
         self.logo_file_var = tk.StringVar(value="ntc.png")
 
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
@@ -28,7 +29,6 @@ class NTCTicketAppPro:
         self._build_ui()
 
     def _build_ui(self):
-        # 1. Printer & Header Settings
         f1 = ttk.LabelFrame(self.root, text=" 1. Printer & Header Settings ", padding=10)
         f1.pack(fill="x", padx=15, pady=5)
 
@@ -48,14 +48,12 @@ class NTCTicketAppPro:
         ttk.Checkbutton(logo_frame, text="Print Logo  File:", variable=self.logo_enabled_var).pack(side="left")
         ttk.Entry(logo_frame, textvariable=self.logo_file_var, width=15).pack(side="left", padx=5)
 
-        # 2. Footer Instructions
         f2 = ttk.LabelFrame(self.root, text=" 2. Footer Instructions ", padding=10)
         f2.pack(fill="x", padx=15, pady=5)
 
         ttk.Entry(f2, textvariable=self.footer_1_var, width=40).pack(pady=2)
         ttk.Entry(f2, textvariable=self.footer_2_var, width=40).pack(pady=2)
 
-        # 3. Ticket Control
         f3 = ttk.LabelFrame(self.root, text=" 3. Ticket Control ", padding=10)
         f3.pack(fill="x", padx=15, pady=5)
 
@@ -70,7 +68,6 @@ class NTCTicketAppPro:
 
         ttk.Checkbutton(f3, text="Auto-increment after printing", variable=self.auto_increment_var).pack(anchor="w", pady=4)
 
-        # Print Button
         btn_frame = ttk.Frame(self.root)
         btn_frame.pack(fill="x", padx=15, pady=5)
         
@@ -85,14 +82,12 @@ class NTCTicketAppPro:
         )
         print_btn.pack(fill="x")
 
-        # Preview Frame
         f4 = ttk.LabelFrame(self.root, text=" Layout Preview (Monospace) ", padding=10)
         f4.pack(fill="both", expand=True, padx=15, pady=5)
 
         self.preview_text = tk.Text(f4, height=14, width=34, font=("Consolas", 9), bg="#F8F9FA")
         self.preview_text.pack(fill="both", expand=True)
 
-        # Triggers
         for var in [self.header_1_var, self.header_2_var, self.footer_1_var, self.footer_2_var, 
                     self.ticket_num_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
@@ -118,7 +113,7 @@ class NTCTicketAppPro:
 
         lines = [border_top]
         if self.logo_enabled_var.get():
-            lines.append("[ LOGO PREVIEW (TEXT ONLY) ]".center(w))
+            lines.append("[ LOGO PREVIEW ]".center(w))
             lines.append("")
 
         if self.header_1_var.get():
@@ -159,72 +154,60 @@ class NTCTicketAppPro:
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
 
         try:
-            # 1. Initialize ESC/POS Byte Commands
-            ESC = b"\x1b"
-            GS = b"\x1d"
+            # 1. Use a virtual Dummy printer to safely compile ESC/POS commands and Image bits
+            p = Dummy()
+            
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text("=" * 32 + "\n")
 
-            INIT = ESC + b"@"
-            ALIGN_CENTER = ESC + b"a\x01"
-            BOLD_ON = ESC + b"E\x01"
-            BOLD_OFF = ESC + b"E\x00"
-            SIZE_NORMAL = GS + b"!\x00"
-            SIZE_DOUBLE = GS + b"!\x11"  # Double height + Double width
-            CUT = GS + b"V\x01"
-
-            # 2. Build Raw Payload
-            buf = bytearray()
-            buf += INIT
-            buf += ALIGN_CENTER
-
-            # Top Border
-            buf += (("=" * 32) + "\n").encode('ascii')
-
-            # Logo Warning (Images in raw byte mode can cause corruption on basic drivers)
+            # Handle Logo Safely
             if self.logo_enabled_var.get():
-                 buf += b"[ LOGO OMITTED IN RAW MODE ]\n\n"
+                logo_path = self.logo_file_var.get().strip()
+                if os.path.exists(logo_path):
+                    try:
+                        # bitImageColumn is usually safest for 58mm printers
+                        p.image(logo_path, impl="bitImageColumn")
+                        p.set(align='center')
+                    except Exception as e:
+                        print(f"Failed to process logo: {e}")
+                else:
+                    p.text("[ LOGO FILE NOT FOUND ]\n")
 
             # Headers
-            if self.bold_var.get():
-                buf += BOLD_ON
-            if h1:
-                buf += (h1 + "\n").encode('ascii', errors='replace')
-            if h2:
-                buf += (h2 + "\n").encode('ascii', errors='replace')
-            buf += BOLD_OFF
+            p.set(align='center', bold=self.bold_var.get())
+            if h1: p.text(f"{h1}\n")
+            if h2: p.text(f"{h2}\n")
 
             # Date Line
-            buf += (("-" * 32) + "\n").encode('ascii')
-            buf += (now_str + "\n").encode('ascii')
-            buf += (("-" * 32) + "\n").encode('ascii')
+            p.set(align='center', bold=False)
+            p.text("-" * 32 + "\n")
+            p.text(f"{now_str}\n")
+            p.text("-" * 32 + "\n")
 
-            # Queue Number Label
-            buf += b"QUEUE NO.\n\n"
+            # Queue Number
+            p.text("QUEUE NO.\n\n")
 
-            # Large Ticket Number
-            buf += SIZE_DOUBLE
-            buf += BOLD_ON
-            buf += (num_str + "\n\n").encode('ascii')
+            p.set(align='center', bold=True, double_height=True, double_width=True)
+            p.text(f"{num_str}\n\n")
 
-            # Reset Size & Footers
-            buf += SIZE_NORMAL
-            buf += BOLD_OFF
-            buf += (("-" * 32) + "\n").encode('ascii')
-            if f1:
-                buf += (f1 + "\n").encode('ascii', errors='replace')
-            if f2:
-                buf += (f2 + "\n").encode('ascii', errors='replace')
-            buf += (("=" * 32) + "\n").encode('ascii')
+            # Footers
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text("-" * 32 + "\n")
+            if f1: p.text(f"{f1}\n")
+            if f2: p.text(f"{f2}\n")
+            p.text("=" * 32 + "\n")
 
-            # Feed lines & Cut
-            buf += b"\n\n\n"
-            buf += CUT
+            p.text("\n\n\n")
+            p.cut()
 
-            # 3. Send Directly to Windows Spooler via win32print
+            # 2. Extract perfectly compiled bytes and send to actual printer spooler
+            raw_data = p.output
+
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
                 win32print.StartPagePrinter(hPrinter)
-                win32print.WritePrinter(hPrinter, bytes(buf))
+                win32print.WritePrinter(hPrinter, raw_data)
                 win32print.EndPagePrinter(hPrinter)
                 win32print.EndDocPrinter(hPrinter)
             finally:
