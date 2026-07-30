@@ -124,8 +124,10 @@ class NTCTicketApp:
         is_bold = self.bold_var.get()
 
         try:
-            # Connect to Windows Spooler Driver
+            # Initialize Win32Raw Printer
             p = Win32Raw(printer_name)
+            p.open(job_name="NTC Ticket Print")
+            
             line_width = 32
             border_line = "#" * line_width
 
@@ -156,16 +158,17 @@ class NTCTicketApp:
             p.set(align='center', bold=False, double_height=False, double_width=False)
             p.text(f"{border_line}\n")
 
-            # Paper feed + Auto Cut
+            # Feed lines & Cut
             p.text("\n\n")
             p.cut()
 
-            # Auto increment
+            p.close()
+
             if self.auto_increment_var.get():
                 self.increment_num()
 
         except Exception as e:
-            messagebox.showerror("Printing Error", f"Could not send job to printer '{printer_name}'.\n\nDetails: {e}")
+            messagebox.showerror("Printing Error", f"Could not print to device '{printer_name}'.\n\nError details: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
