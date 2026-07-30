@@ -40,8 +40,15 @@ class NTCTicketAppPro:
         ttk.Label(f1, text="Header Line 1:").grid(row=1, column=0, sticky="w", pady=2)
         ttk.Entry(f1, textvariable=self.header_1_var, width=28).grid(row=1, column=1, pady=2)
 
+        # --- UPDATED: Header Line 2 is now a Combobox ---
         ttk.Label(f1, text="Header Line 2:").grid(row=2, column=0, sticky="w", pady=2)
-        ttk.Entry(f1, textvariable=self.header_2_var, width=28).grid(row=2, column=1, pady=2)
+        header_2_cb = ttk.Combobox(
+            f1, 
+            textvariable=self.header_2_var, 
+            width=25, 
+            values=["Licensing", "Cashier", "Releasing"]
+        )
+        header_2_cb.grid(row=2, column=1, pady=2)
 
         ttk.Checkbutton(f1, text="Bold Headers", variable=self.bold_var).grid(row=3, column=0, columnspan=2, sticky="w", pady=4)
 
