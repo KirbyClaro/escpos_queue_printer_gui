@@ -19,7 +19,7 @@ class NTCTicketApp:
         
         # Logo Variables
         self.logo_var = tk.BooleanVar(value=False)
-        self.logo_path_var = tk.StringVar(value="logo.png")
+        self.logo_path_var = tk.StringVar(value="ntc.png")
 
         # Footer Variables
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
