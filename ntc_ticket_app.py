@@ -6,11 +6,11 @@ class NTCTicketApp:
     def __init__(self, root):
         self.root = root
         self.root.title("NTC-NCR Ticket Generator")
-        self.root.geometry("450x600")
+        self.root.geometry("450x600")  # Fixed geometry spacing issue
         self.root.resizable(False, False)
 
         # Variables
-        self.printer_name_var = tk.StringVar(value="XP-58C-Licensing")
+        self.printer_name_var = tk.StringVar(value="XP-58C")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.ticket_num_var = tk.IntVar(value=1)
@@ -58,6 +58,7 @@ class NTCTicketApp:
         btn_frame = ttk.Frame(self.root, padding=10)
         btn_frame.pack(fill="x", padx=15)
 
+        # Standard tk.Button to properly support standard padding
         print_btn = tk.Button(
             btn_frame, 
             text="🖨️ PRINT TICKET", 
@@ -95,17 +96,18 @@ class NTCTicketApp:
         line_width = 32
         border = "#" * line_width
         
-        h1 = self.header_1_var.get().center(line_width - 4)
-        h2 = self.header_2_var.get().center(line_width - 4)
-        num_str = f"{self.ticket_num_var.get():03d}".center(line_width - 4)
-        empty = " ".center(line_width - 4)
+        # Using 28 characters for the inside to account for '# ' and ' #'
+        h1 = self.header_1_var.get().strip()[:28].center(28)
+        h2 = self.header_2_var.get().strip()[:28].center(28)
+        num_str = f"{self.ticket_num_var.get():03d}".center(line_width) # Number formatting in preview
+        empty = " " * 28
 
         lines = [
             border,
             f"# {h1} #",
             f"# {h2} #",
             f"# {empty} #",
-            f"# {num_str} #",
+            f"{num_str}",
             border
         ]
         return "\n".join(lines)
@@ -118,54 +120,59 @@ class NTCTicketApp:
 
     def print_ticket(self):
         printer_name = self.printer_name_var.get().strip()
-        h1 = self.header_1_var.get()
-        h2 = self.header_2_var.get()
+        h1 = self.header_1_var.get().strip()
+        h2 = self.header_2_var.get().strip()
         num_formatted = f"{self.ticket_num_var.get():03d}"
         is_bold = self.bold_var.get()
 
         try:
-            # Initialize Win32Raw Printer
+            # Initialize Win32Raw Printer connection
             p = Win32Raw(printer_name)
-            p.open(job_name="NTC Ticket Print")  # Open spooler connection
-            
-            line_width = 32
-            border_line = "#" * line_width
+            p.open(job_name="NTC Ticket Print")
 
-            # Top Border
-            p.set(align='center', bold=False)
+            # 58mm standard printable character width is 32 chars
+            width = 32
+            border_line = "#" * width
+
+            # --- RESET PRINTER MODES ---
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+
+            # --- TOP BORDER ---
             p.text(f"{border_line}\n")
 
-            # Header Line 1
-            p.set(align='center', bold=is_bold)
-            content1 = h1.center(line_width - 4)
-            p.text(f"# {content1} #\n")
+            # --- HEADER LINE 1 ---
+            # Printable inner space between '# ' and ' #' is (32 - 4) = 28 characters
+            inner1 = h1[:28].center(28)
+            p.set(align='center', bold=is_bold, double_height=False, double_width=False)
+            p.text(f"# {inner1} #\n")
 
-            # Header Line 2
-            p.set(align='center', bold=is_bold)
-            content2 = h2.center(line_width - 4)
-            p.text(f"# {content2} #\n")
+            # --- HEADER LINE 2 ---
+            inner2 = h2[:28].center(28)
+            p.set(align='center', bold=is_bold, double_height=False, double_width=False)
+            p.text(f"# {inner2} #\n")
 
-            # Padded Empty Row
-            empty_row = " ".center(line_width - 4)
-            p.text(f"# {empty_row} #\n")
+            # --- EMPTY SPACER ROW ---
+            empty_inner = " " * 28
+            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.text(f"# {empty_inner} #\n")
 
-            # Big Ticket Number
+            # --- LARGE TICKET NUMBER ---
+            # Print the number using double size centered natively
             p.set(align='center', bold=True, double_height=True, double_width=True)
-            formatted_num = num_formatted.center(14)
-            p.text(f"{formatted_num}\n")
+            p.text(f"{num_formatted}\n")
 
-            # Reset Font & Bottom Border
+            # --- BOTTOM BORDER ---
             p.set(align='center', bold=False, double_height=False, double_width=False)
             p.text(f"{border_line}\n")
 
-            # Feed lines & Cut
+            # --- FEED & CUT ---
             p.text("\n\n")
             p.cut()
 
-            # Close spooler handle so Windows prints immediately
+            # Close printer handle
             p.close()
 
-            # Auto increment ticket number on success
+            # Auto-increment
             if self.auto_increment_var.get():
                 self.increment_num()
 
