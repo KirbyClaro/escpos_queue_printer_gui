@@ -94,21 +94,29 @@ class NTCTicketApp:
 
     def generate_ticket_text(self):
         line_width = 32
-        border = "#" * line_width
+        thick_border = "=" * line_width
+        thin_border = "-" * line_width
         
-        # Using 28 characters for the inside to account for '# ' and ' #'
-        h1 = self.header_1_var.get().strip()[:28].center(28)
-        h2 = self.header_2_var.get().strip()[:28].center(28)
-        num_str = f"{self.ticket_num_var.get():03d}".center(line_width) # Number formatting in preview
-        empty = " " * 28
+        # Center headers without side borders
+        h1 = self.header_1_var.get().strip().center(line_width)
+        h2 = self.header_2_var.get().strip().center(line_width)
+        
+        # Formal queue label
+        queue_label = "QUEUE NO.".center(line_width)
+        
+        # Number formatting for the preview
+        num_str = f"{self.ticket_num_var.get():03d}".center(line_width)
 
         lines = [
-            border,
-            f"# {h1} #",
-            f"# {h2} #",
-            f"# {empty} #",
-            f"{num_str}",
-            border
+            thick_border,
+            h1,
+            h2,
+            thin_border,
+            queue_label,
+            "",
+            num_str,
+            "",
+            thick_border
         ]
         return "\n".join(lines)
 
@@ -130,44 +138,40 @@ class NTCTicketApp:
             p = Win32Raw(printer_name)
             p.open(job_name="NTC Ticket Print")
 
-            # --- HARDWARE RESET (FIXES STUCK BIG TEXT) ---
-            p.text("\x1b\x40")      # ESC @ : Initializes printer (clears all buffers)
-            p.text("\x1d\x21\x00")  # GS ! 0 : Forces character size to normal (1x width, 1x height)
-            p.text("\x1b\x21\x00")  # ESC ! 0 : Forces standard font mode
+            # --- HARDWARE RESET ---
+            p.text("\x1b\x40")      # ESC @ : Initialize printer
+            p.text("\x1d\x21\x00")  # GS ! 0 : Force normal size
+            p.text("\x1b\x21\x00")  # ESC ! 0 : Force standard font
 
-            # 58mm standard printable character width is 32 chars
             width = 32
-            border_line = "#" * width
+            thick_border = "=" * width
+            thin_border = "-" * width
 
             # --- TOP BORDER ---
-            p.set(align='center')
-            p.text(f"{border_line}\n")
-
-            # --- HEADER LINE 1 ---
-            inner1 = h1[:28].center(28)
             p.set(align='center', bold=is_bold)
-            p.text(f"# {inner1} #\n")
+            p.text(f"{thick_border}\n")
 
-            # --- HEADER LINE 2 ---
-            inner2 = h2[:28].center(28)
+            # --- HEADERS ---
             p.set(align='center', bold=is_bold)
-            p.text(f"# {inner2} #\n")
+            p.text(f"{h1.center(width)}\n")
+            p.text(f"{h2.center(width)}\n")
 
-            # --- EMPTY SPACER ROW ---
-            empty_inner = " " * 28
+            # --- SEPARATOR & LABEL ---
             p.set(align='center', bold=False)
-            p.text(f"# {empty_inner} #\n")
+            p.text(f"{thin_border}\n")
+            p.set(align='center', bold=is_bold)
+            p.text("QUEUE NO.\n\n")
 
             # --- LARGE TICKET NUMBER ---
-            # Turn on double width/height strictly for the number
+            # Print the number using double size centered
             p.set(align='center', bold=True, double_height=True, double_width=True)
             p.text(f"{num_formatted}\n")
 
             # --- BOTTOM BORDER ---
-            # Force hardware back to normal size before printing the bottom border
-            p.text("\x1d\x21\x00")  # GS ! 0 : Reset character size
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text(f"{border_line}\n")
+            # Force hardware back to normal size
+            p.text("\x1d\x21\x00")  
+            p.set(align='center', bold=is_bold)
+            p.text(f"\n{thick_border}\n")
 
             # --- FEED & CUT ---
             p.text("\n\n")
