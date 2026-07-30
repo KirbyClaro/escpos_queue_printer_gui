@@ -12,7 +12,7 @@ class NTCTicketApp:
         self.root.resizable(False, False)
 
         # Main Variables
-        self.printer_name_var = tk.StringVar(value="XP-58C")
+        self.printer_name_var = tk.StringVar(value="XP-58C-Licensing")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.bold_var = tk.BooleanVar(value=True)
