@@ -204,8 +204,9 @@ class NTCTicketAppPro:
             # Queue Number Label
             p.text("QUEUE NO.\n")
 
-            # --- UPDATED: Ticket Number bumped back up to Font A to make it pop ---
-            p.set(align='center', font='a', bold=True, double_height=True, double_width=True)
+            # --- UPDATED: Hardware command to force 3x Width and 3x Height ---
+            p.set(align='center', font='a', bold=True)
+            p.text("\x1d!\x22") # \x1d!\x22 translates to GS ! 34 (3x scaling)
             p.text(num_str + "\n")
 
             # --- Hard Reset Size ---
