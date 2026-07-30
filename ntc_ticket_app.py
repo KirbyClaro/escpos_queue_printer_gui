@@ -9,7 +9,7 @@ from escpos.printer import Dummy
 class NTCTicketAppPro:
     def __init__(self, root):
         self.root = root
-        self.root.title("NTC-NCR Ticket Generator Pro")
+        self.root.title("NTC Ticket Generator Pro")
         self.root.geometry("480x780")
         self.root.resizable(False, False)
 
@@ -105,7 +105,18 @@ class NTCTicketAppPro:
                     self.ticket_num_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
 
+        # --- NEW: Trigger to update Window Title based on Department ---
+        self.header_2_var.trace_add("write", self.update_window_title)
+
+        self.update_window_title()
         self.update_preview()
+
+    def update_window_title(self, *args):
+        dept = self.header_2_var.get().strip()
+        if dept:
+            self.root.title(f"NTC Ticket Generator Pro - {dept}")
+        else:
+            self.root.title("NTC Ticket Generator Pro")
 
     def increment_num(self):
         self.ticket_num_var.set(self.ticket_num_var.get() + 1)
@@ -204,7 +215,7 @@ class NTCTicketAppPro:
             # Queue Number Label
             p.text("QUEUE NO.\n")
 
-            # --- UPDATED: Hardware command to force 3x Width and 3x Height ---
+            # --- Ticket Number using 3x Width and 3x Height ---
             p.set(align='center', font='a', bold=True)
             p.text("\x1d!\x22") # \x1d!\x22 translates to GS ! 34 (3x scaling)
             p.text(num_str + "\n")
