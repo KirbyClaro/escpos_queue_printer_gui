@@ -22,7 +22,7 @@ class NTCTicketAppPro:
         self.logo_file_var = tk.StringVar(value="ntc.png")
 
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
-        self.footer_2_var = tk.StringVar(value="Prepare your valid ID")
+        self.footer_2_var = tk.StringVar(value="") # Left empty by default but still editable
 
         self.ticket_num_var = tk.IntVar(value=1)
         self.auto_increment_var = tk.BooleanVar(value=True)
