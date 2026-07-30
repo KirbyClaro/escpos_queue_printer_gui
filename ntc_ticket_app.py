@@ -6,7 +6,7 @@ class NTCTicketApp:
     def __init__(self, root):
         self.root = root
         self.root.title("NTC-NCR Ticket Generator")
-        self.root.geometry("450 x 600")
+        self.root.geometry("450x600")
         self.root.resizable(False, False)
 
         # Variables
