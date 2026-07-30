@@ -6,11 +6,11 @@ class NTCTicketApp:
     def __init__(self, root):
         self.root = root
         self.root.title("NTC-NCR Ticket Generator")
-        self.root.geometry("450x600")  # Fixed geometry spacing issue
+        self.root.geometry("450x600")  
         self.root.resizable(False, False)
 
         # Variables
-        self.printer_name_var = tk.StringVar(value="XP-58C")
+        self.printer_name_var = tk.StringVar(value="XP-58C-Licensing")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.ticket_num_var = tk.IntVar(value=1)
@@ -130,38 +130,42 @@ class NTCTicketApp:
             p = Win32Raw(printer_name)
             p.open(job_name="NTC Ticket Print")
 
+            # --- HARDWARE RESET (FIXES STUCK BIG TEXT) ---
+            p.text("\x1b\x40")      # ESC @ : Initializes printer (clears all buffers)
+            p.text("\x1d\x21\x00")  # GS ! 0 : Forces character size to normal (1x width, 1x height)
+            p.text("\x1b\x21\x00")  # ESC ! 0 : Forces standard font mode
+
             # 58mm standard printable character width is 32 chars
             width = 32
             border_line = "#" * width
 
-            # --- RESET PRINTER MODES ---
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-
             # --- TOP BORDER ---
+            p.set(align='center')
             p.text(f"{border_line}\n")
 
             # --- HEADER LINE 1 ---
-            # Printable inner space between '# ' and ' #' is (32 - 4) = 28 characters
             inner1 = h1[:28].center(28)
-            p.set(align='center', bold=is_bold, double_height=False, double_width=False)
+            p.set(align='center', bold=is_bold)
             p.text(f"# {inner1} #\n")
 
             # --- HEADER LINE 2 ---
             inner2 = h2[:28].center(28)
-            p.set(align='center', bold=is_bold, double_height=False, double_width=False)
+            p.set(align='center', bold=is_bold)
             p.text(f"# {inner2} #\n")
 
             # --- EMPTY SPACER ROW ---
             empty_inner = " " * 28
-            p.set(align='center', bold=False, double_height=False, double_width=False)
+            p.set(align='center', bold=False)
             p.text(f"# {empty_inner} #\n")
 
             # --- LARGE TICKET NUMBER ---
-            # Print the number using double size centered natively
+            # Turn on double width/height strictly for the number
             p.set(align='center', bold=True, double_height=True, double_width=True)
             p.text(f"{num_formatted}\n")
 
             # --- BOTTOM BORDER ---
+            # Force hardware back to normal size before printing the bottom border
+            p.text("\x1d\x21\x00")  # GS ! 0 : Reset character size
             p.set(align='center', bold=False, double_height=False, double_width=False)
             p.text(f"{border_line}\n")
 
