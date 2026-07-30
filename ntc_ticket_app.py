@@ -163,73 +163,92 @@ class NTCTicketApp:
     # --- Print Logic ---
     def print_ticket(self):
         printer_name = self.printer_name_var.get().strip()
-        is_bold = self.bold_var.get()
-        w = 32
-        thick = "=" * w
-        thin = "-" * w
-        
+        h1 = self.header_1_var.get().strip()
+        h2 = self.header_2_var.get().strip()
+        f1 = self.footer_1_var.get().strip()
+        f2 = self.footer_2_var.get().strip()
+        num_str = f"{self.ticket_num_var.get():03d}"
+        now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
+
         try:
-            p = Win32Raw(printer_name)
-            p.open(job_name="NTC Ticket Print")
+            # 1. Initialize ESC/POS Byte Commands
+            ESC = b"\x1b"
+            GS = b"\x1d"
 
-            # HARDWARE RESET
-            p.text("\x1b\x40")
-            p.text("\x1d\x21\x00")
-            p.text("\x1b\x21\x00")
+            # Reset printer
+            INIT = ESC + b"@"
+            # Alignments
+            ALIGN_CENTER = ESC + b"a\x01"
+            # Font Styles
+            BOLD_ON = ESC + b"E\x01"
+            BOLD_OFF = ESC + b"E\x00"
+            # Text Sizing
+            SIZE_NORMAL = GS + b"!\x00"
+            SIZE_DOUBLE = GS + b"!\x11"  # Double height + Double width
+            # Cut command
+            CUT = GS + b"V\x01"
 
-            # TOP BORDER
-            p.set(align='center', bold=is_bold)
-            p.text(f"{thick}\n")
+            # 2. Build Payload
+            buf = bytearray()
+            buf += INIT
+            buf += ALIGN_CENTER
 
-            # LOGO INJECTION
-            if self.logo_var.get():
-                logo_path = self.logo_path_var.get().strip()
-                if os.path.exists(logo_path):
-                    p.set(align='center')
-                    p.image(logo_path)
-                    p.text("\n")
-                else:
-                    messagebox.showwarning("Logo Missing", f"Could not find image: '{logo_path}'.\nPrinting without logo.")
+            # Top Border
+            buf += (("=" * 32) + "\n").encode('ascii')
 
-            # HEADERS
-            p.set(align='center', bold=is_bold)
-            p.text(f"{self.header_1_var.get().strip().center(w)}\n")
-            p.text(f"{self.header_2_var.get().strip().center(w)}\n")
+            # Headers
+            if self.bold_var.get():
+                buf += BOLD_ON
+            if h1:
+                buf += (h1 + "\n").encode('ascii', errors='replace')
+            if h2:
+                buf += (h2 + "\n").encode('ascii', errors='replace')
+            buf += BOLD_OFF
 
-            # DATE & TIME
-            p.set(align='center', bold=False)
-            p.text(f"{thin}\n")
-            date_str = datetime.now().strftime("%b %d, %Y  %I:%M %p")
-            p.text(f"{date_str.center(w)}\n")
+            # Date Line
+            buf += (("-" * 32) + "\n").encode('ascii')
+            buf += (now_str + "\n").encode('ascii')
+            buf += (("-" * 32) + "\n").encode('ascii')
 
-            # QUEUE NUMBER
-            p.text(f"{thin}\n")
-            p.set(align='center', bold=is_bold)
-            p.text("QUEUE NO.\n\n")
+            # Queue Number Label
+            buf += b"QUEUE NO.\n\n"
 
-            p.set(align='center', bold=True, double_height=True, double_width=True)
-            p.text(f"{self.ticket_num_var.get():03d}\n")
+            # Large Ticket Number
+            buf += SIZE_DOUBLE
+            buf += BOLD_ON
+            buf += (num_str + "\n\n").encode('ascii')
 
-            # FOOTERS
-            p.text("\x1d\x21\x00") # Reset font size
-            p.set(align='center', bold=False)
-            p.text(f"\n{thin}\n")
-            p.text(f"{self.footer_1_var.get().strip().center(w)}\n")
-            p.text(f"{self.footer_2_var.get().strip().center(w)}\n")
-            
-            p.set(align='center', bold=is_bold)
-            p.text(f"{thick}\n")
+            # Reset Size & Footers
+            buf += SIZE_NORMAL
+            buf += BOLD_OFF
+            buf += (("-" * 32) + "\n").encode('ascii')
+            if f1:
+                buf += (f1 + "\n").encode('ascii', errors='replace')
+            if f2:
+                buf += (f2 + "\n").encode('ascii', errors='replace')
+            buf += (("=" * 32) + "\n").encode('ascii')
 
-            # FEED & CUT
-            p.text("\n\n")
-            p.cut()
-            p.close()
+            # Feed lines & Cut
+            buf += b"\n\n\n"
+            buf += CUT
 
+            # 3. Send Directly to Windows Spooler via win32print
+            hPrinter = win32print.OpenPrinter(printer_name)
+            try:
+                hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
+                win32print.StartPagePrinter(hPrinter)
+                win32print.WritePrinter(hPrinter, bytes(buf))
+                win32print.EndPagePrinter(hPrinter)
+                win32print.EndDocPrinter(hPrinter)
+            finally:
+                win32print.ClosePrinter(hPrinter)
+
+            # Auto Increment
             if self.auto_increment_var.get():
                 self.increment_num()
 
         except Exception as e:
-            messagebox.showerror("Printing Error", f"Could not print to device '{printer_name}'.\n\nError details: {e}")
+            messagebox.showerror("Printing Error", f"Failed to send print job to '{printer_name}'.\n\nDetails: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
