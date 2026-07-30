@@ -3,6 +3,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox
 import win32print
+from PIL import Image
 from escpos.printer import Dummy
 
 class NTCTicketAppPro:
@@ -29,6 +30,7 @@ class NTCTicketAppPro:
         self._build_ui()
 
     def _build_ui(self):
+        # 1. Printer & Header Settings
         f1 = ttk.LabelFrame(self.root, text=" 1. Printer & Header Settings ", padding=10)
         f1.pack(fill="x", padx=15, pady=5)
 
@@ -48,12 +50,14 @@ class NTCTicketAppPro:
         ttk.Checkbutton(logo_frame, text="Print Logo  File:", variable=self.logo_enabled_var).pack(side="left")
         ttk.Entry(logo_frame, textvariable=self.logo_file_var, width=15).pack(side="left", padx=5)
 
+        # 2. Footer Instructions
         f2 = ttk.LabelFrame(self.root, text=" 2. Footer Instructions ", padding=10)
         f2.pack(fill="x", padx=15, pady=5)
 
         ttk.Entry(f2, textvariable=self.footer_1_var, width=40).pack(pady=2)
         ttk.Entry(f2, textvariable=self.footer_2_var, width=40).pack(pady=2)
 
+        # 3. Ticket Control
         f3 = ttk.LabelFrame(self.root, text=" 3. Ticket Control ", padding=10)
         f3.pack(fill="x", padx=15, pady=5)
 
@@ -68,6 +72,7 @@ class NTCTicketAppPro:
 
         ttk.Checkbutton(f3, text="Auto-increment after printing", variable=self.auto_increment_var).pack(anchor="w", pady=4)
 
+        # Print Button
         btn_frame = ttk.Frame(self.root)
         btn_frame.pack(fill="x", padx=15, pady=5)
         
@@ -82,12 +87,14 @@ class NTCTicketAppPro:
         )
         print_btn.pack(fill="x")
 
+        # Preview Frame
         f4 = ttk.LabelFrame(self.root, text=" Layout Preview (Monospace) ", padding=10)
         f4.pack(fill="both", expand=True, padx=15, pady=5)
 
         self.preview_text = tk.Text(f4, height=14, width=34, font=("Consolas", 9), bg="#F8F9FA")
         self.preview_text.pack(fill="both", expand=True)
 
+        # Triggers
         for var in [self.header_1_var, self.header_2_var, self.footer_1_var, self.footer_2_var, 
                     self.ticket_num_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
@@ -113,7 +120,7 @@ class NTCTicketAppPro:
 
         lines = [border_top]
         if self.logo_enabled_var.get():
-            lines.append("[ LOGO PREVIEW ]".center(w))
+            lines.append("[ LOGO PREVIEW (TEXT ONLY) ]".center(w))
             lines.append("")
 
         if self.header_1_var.get():
@@ -154,55 +161,67 @@ class NTCTicketAppPro:
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
 
         try:
-            # 1. Use a virtual Dummy printer to safely compile ESC/POS commands and Image bits
+            # 1. Use a Dummy printer to build pure ESC/POS commands
             p = Dummy()
-            
-            p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text("=" * 32 + "\n")
+            p.set(align='center')
 
-            # Handle Logo Safely
+            # --- Smart Image Resizing ---
             if self.logo_enabled_var.get():
                 logo_path = self.logo_file_var.get().strip()
                 if os.path.exists(logo_path):
                     try:
-                        # bitImageColumn is usually safest for 58mm printers
-                        p.image(logo_path, impl="bitImageColumn")
-                        p.set(align='center')
-                    except Exception as e:
-                        print(f"Failed to process logo: {e}")
+                        img = Image.open(logo_path)
+                        max_width = 220 # Safe width for 58mm printer (384 max)
+                        
+                        # Resize if image is too large
+                        if img.width > max_width:
+                            ratio = max_width / float(img.width)
+                            new_height = int(float(img.height) * float(ratio))
+                            img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                        
+                        p.image(img)
+                        p.text("\n")
+                    except Exception as img_err:
+                        print(f"Logo resizing/printing error: {img_err}")
                 else:
-                    p.text("[ LOGO FILE NOT FOUND ]\n")
+                    print(f"Logo not found at {logo_path}")
+
+            # Top Border
+            p.text(("=" * 32) + "\n")
 
             # Headers
             p.set(align='center', bold=self.bold_var.get())
-            if h1: p.text(f"{h1}\n")
-            if h2: p.text(f"{h2}\n")
+            if h1: p.text(h1 + "\n")
+            if h2: p.text(h2 + "\n")
 
             # Date Line
             p.set(align='center', bold=False)
-            p.text("-" * 32 + "\n")
-            p.text(f"{now_str}\n")
-            p.text("-" * 32 + "\n")
+            p.text(("-" * 32) + "\n")
+            p.text(now_str + "\n")
+            p.text(("-" * 32) + "\n")
 
-            # Queue Number
+            # Queue Number Label
             p.text("QUEUE NO.\n\n")
 
+            # Large Ticket Number
             p.set(align='center', bold=True, double_height=True, double_width=True)
-            p.text(f"{num_str}\n\n")
+            p.text(num_str + "\n\n")
 
-            # Footers
+            # Reset Size & Footers
             p.set(align='center', bold=False, double_height=False, double_width=False)
-            p.text("-" * 32 + "\n")
-            if f1: p.text(f"{f1}\n")
-            if f2: p.text(f"{f2}\n")
-            p.text("=" * 32 + "\n")
+            p.text(("-" * 32) + "\n")
+            if f1: p.text(f1 + "\n")
+            if f2: p.text(f2 + "\n")
+            p.text(("=" * 32) + "\n")
 
+            # Feed lines & Cut
             p.text("\n\n\n")
             p.cut()
 
-            # 2. Extract perfectly compiled bytes and send to actual printer spooler
+            # 2. Extract perfectly formatted bytes
             raw_data = p.output
 
+            # 3. Send Directly to Windows Spooler via win32print (prevents garbage prints)
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
