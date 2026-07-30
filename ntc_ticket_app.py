@@ -161,19 +161,17 @@ class NTCTicketAppPro:
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
 
         try:
-            # 1. Use a Dummy printer to build pure ESC/POS commands
             p = Dummy()
             p.set(align='center')
 
-            # --- Smart Image Resizing ---
+            # --- Smart Image Resizing (Reduced size) ---
             if self.logo_enabled_var.get():
                 logo_path = self.logo_file_var.get().strip()
                 if os.path.exists(logo_path):
                     try:
                         img = Image.open(logo_path)
-                        max_width = 220 # Safe width for 58mm printer (384 max)
+                        max_width = 160  # Decreased from 220 to make the logo smaller
                         
-                        # Resize if image is too large
                         if img.width > max_width:
                             ratio = max_width / float(img.width)
                             new_height = int(float(img.height) * float(ratio))
@@ -183,45 +181,54 @@ class NTCTicketAppPro:
                         p.text("\n")
                     except Exception as img_err:
                         print(f"Logo resizing/printing error: {img_err}")
-                else:
-                    print(f"Logo not found at {logo_path}")
 
-            # Top Border
+            # Top Border (Font A - Standard Size)
+            p.set(align='center', font='a', bold=False)
             p.text(("=" * 32) + "\n")
 
-            # Headers
-            p.set(align='center', bold=self.bold_var.get())
+            # Headers (Font A)
+            p.set(align='center', font='a', bold=self.bold_var.get())
             if h1: p.text(h1 + "\n")
             if h2: p.text(h2 + "\n")
 
-            # Date Line
-            p.set(align='center', bold=False)
+            # Date Line (Borders in Font A, Date Text in Font B for compact size)
+            p.set(align='center', font='a', bold=False)
             p.text(("-" * 32) + "\n")
+            p.set(align='center', font='b', bold=False)
             p.text(now_str + "\n")
+            p.set(align='center', font='a', bold=False)
             p.text(("-" * 32) + "\n")
 
             # Queue Number Label
             p.text("QUEUE NO.\n\n")
 
             # Large Ticket Number
-            p.set(align='center', bold=True, double_height=True, double_width=True)
+            p.set(align='center', font='a', bold=True, double_height=True, double_width=True)
             p.text(num_str + "\n\n")
 
-            # Reset Size & Footers
-            p.set(align='center', bold=False, double_height=False, double_width=False)
+            # --- Hard Reset Size & Compact Footers ---
+            p.text("\x1d!\x00") # Send raw hardware reset (GS ! 0) to guarantee text shrinks back
+            
+            p.set(align='center', font='a', bold=False)
             p.text(("-" * 32) + "\n")
+            
+            # Print footer instructions in smaller Font B
+            p.set(align='center', font='b', bold=False)
             if f1: p.text(f1 + "\n")
             if f2: p.text(f2 + "\n")
+            
+            # Bottom Border (Font A)
+            p.set(align='center', font='a', bold=False)
             p.text(("=" * 32) + "\n")
 
             # Feed lines & Cut
             p.text("\n\n\n")
             p.cut()
 
-            # 2. Extract perfectly formatted bytes
+            # 2. Extract raw bytes
             raw_data = p.output
 
-            # 3. Send Directly to Windows Spooler via win32print (prevents garbage prints)
+            # 3. Send to Spooler
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
