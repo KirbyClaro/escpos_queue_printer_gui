@@ -14,7 +14,7 @@ class NTCTicketAppPro:
         self.root.resizable(False, False)
 
         # Variables
-        self.printer_name_var = tk.StringVar(value="XP-58C-Licensing")
+        self.printer_name_var = tk.StringVar(value="XP-58C")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
         self.header_2_var = tk.StringVar(value="Licensing")
         self.bold_var = tk.BooleanVar(value=True)
@@ -22,7 +22,7 @@ class NTCTicketAppPro:
         self.logo_file_var = tk.StringVar(value="ntc.png")
 
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
-        self.footer_2_var = tk.StringVar(value="") # Left empty by default but still editable
+        self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
         self.ticket_num_var = tk.IntVar(value=1)
         self.auto_increment_var = tk.BooleanVar(value=True)
@@ -105,7 +105,7 @@ class NTCTicketAppPro:
                     self.ticket_num_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
 
-        # --- NEW: Trigger to update Window Title based on Department ---
+        # --- Trigger to update Window Title based on Department ---
         self.header_2_var.trace_add("write", self.update_window_title)
 
         self.update_window_title()
