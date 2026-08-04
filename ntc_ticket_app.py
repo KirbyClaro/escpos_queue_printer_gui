@@ -16,13 +16,13 @@ class NTCTicketAppPro:
         # Variables
         self.printer_name_var = tk.StringVar(value="XP-58C")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
-        self.header_2_var = tk.StringVar(value="Licensing")
+        self.header_2_var = tk.StringVar(value="LICENSING")
         self.bold_var = tk.BooleanVar(value=True)
         self.logo_enabled_var = tk.BooleanVar(value=True)
         self.logo_file_var = tk.StringVar(value="ntc.png")
 
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
-        self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
+        self.footer_2_var = tk.StringVar(value="[Missed numbers require a new ticket.]") 
 
         self.ticket_num_var = tk.IntVar(value=1)
         self.auto_increment_var = tk.BooleanVar(value=True)
@@ -45,7 +45,7 @@ class NTCTicketAppPro:
             f1, 
             textvariable=self.header_2_var, 
             width=25, 
-            values=["Licensing", "Cashier", "Releasing"]
+            values=["LICENSING", "CASHIER", "RELEASING"]
         )
         header_2_cb.grid(row=2, column=1, pady=2)
 
