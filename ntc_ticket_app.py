@@ -1,7 +1,8 @@
 import os
 import datetime
+import csv
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import win32print
 from PIL import Image
 from escpos.printer import Dummy
@@ -10,7 +11,7 @@ class NTCTicketAppPro:
     def __init__(self, root):
         self.root = root
         self.root.title("NTC Ticket Generator Pro")
-        self.root.geometry("480x780")
+        self.root.geometry("480x920") 
         self.root.resizable(False, False)
 
         # Variables
@@ -30,8 +31,10 @@ class NTCTicketAppPro:
 
         self.ticket_prefix_var = tk.StringVar(value="S")
         self.ticket_num_var = tk.IntVar(value=self.counters["S"])
-        
         self.auto_increment_var = tk.BooleanVar(value=True)
+
+        # --- NEW: Daily Log Storage ---
+        self.print_log = []
 
         self._build_ui()
 
@@ -111,12 +114,21 @@ class NTCTicketAppPro:
         )
         print_btn.pack(fill="x")
 
-        # Preview Frame
+        # Preview Frame 
         f4 = ttk.LabelFrame(self.root, text=" Layout Preview (Monospace) ", padding=10)
         f4.pack(fill="both", expand=True, padx=15, pady=5)
 
-        self.preview_text = tk.Text(f4, height=14, width=44, font=("Consolas", 9), bg="#F8F9FA")
+        self.preview_text = tk.Text(f4, height=12, width=44, font=("Consolas", 9), bg="#F8F9FA")
         self.preview_text.pack(fill="both", expand=True)
+
+        # --- NEW: 5. Recent Logs & Export ---
+        f5 = ttk.LabelFrame(self.root, text=" Recent Prints & Log Export ", padding=10)
+        f5.pack(fill="x", padx=15, pady=5)
+
+        self.log_listbox = tk.Listbox(f5, height=5, font=("Consolas", 9), bg="#F8F9FA")
+        self.log_listbox.pack(fill="x", pady=(0, 5))
+
+        ttk.Button(f5, text="💾 Export Daily Log (CSV)", command=self.export_csv).pack(fill="x")
 
         # Triggers
         for var in [self.header_1_var, self.header_2_var, self.footer_1_var, self.footer_2_var, 
@@ -128,29 +140,66 @@ class NTCTicketAppPro:
 
         self.update_window_title()
         self.update_preview()
+        self.update_log_display()
+
+    # --- NEW: CSV Export Logic ---
+    def export_csv(self):
+        if not self.print_log:
+            messagebox.showinfo("Export Empty", "There are no printed tickets to export yet.")
+            return
+            
+        default_name = f"NTC_Queue_Log_{datetime.datetime.now().strftime('%Y%m%d')}.csv"
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            initialfile=default_name,
+            title="Save Daily Queue Log",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+        )
+        
+        if filepath:
+            try:
+                with open(filepath, mode='w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    # Write Header Row
+                    writer.writerow(["Timestamp", "Ticket Number", "Department", "Transaction Type"])
+                    # Write Data
+                    for log in self.print_log:
+                        # Extract the prefix letter to name the transaction type
+                        prefix = log['ticket'][0] 
+                        trans_type = "Single" if prefix == 'S' else "Multiple" if prefix == 'M' else "Priority"
+                        
+                        writer.writerow([log['time'], log['ticket'], log['dept'], trans_type])
+                        
+                messagebox.showinfo("Export Success", f"Log successfully saved to:\n{filepath}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to save CSV.\n\n{e}")
+
+    # --- NEW: Log UI Updater ---
+    def update_log_display(self):
+        self.log_listbox.delete(0, tk.END)
+        if not self.print_log:
+            self.log_listbox.insert(tk.END, " No tickets printed yet...")
+            return
+            
+        # Get last 5 items, reversed so the newest is at the top
+        recent = list(reversed(self.print_log[-5:]))
+        for item in recent:
+            self.log_listbox.insert(tk.END, f" ✅ {item['time']} | {item['ticket']} | {item['dept']}")
 
     def on_prefix_change(self):
         new_prefix = self.ticket_prefix_var.get()
         if new_prefix != self.last_prefix:
-            # 1. Save the current number to the OLD prefix's memory
             self.counters[self.last_prefix] = self.ticket_num_var.get()
-            
-            # 2. Update the display to the NEW prefix's saved number
             self.ticket_num_var.set(self.counters[new_prefix])
-            
-            # 3. Remember what we are currently looking at
             self.last_prefix = new_prefix
 
     def master_reset(self):
-        # Confirmation pop-up for safety
         confirm = messagebox.askyesno(
             "Master Reset", 
             "Are you sure you want to reset ALL queues (Single, Multiple, and Priority) back to 001?\n\nThis is usually done at the start of a new day."
         )
         if confirm:
-            # Wipe the memory bank clean
             self.counters = {"S": 1, "M": 1, "P": 1}
-            # Reset the currently viewed number back to 1
             self.ticket_num_var.set(1)
 
     def update_window_title(self, *args):
@@ -168,7 +217,6 @@ class NTCTicketAppPro:
             self.ticket_num_var.set(self.ticket_num_var.get() - 1)
 
     def reset_num(self):
-        # --- UPDATED: Individual Queue Reset Confirmation ---
         current_prefix = self.ticket_prefix_var.get()
         confirm = messagebox.askyesno(
             "Reset Current Queue", 
@@ -178,12 +226,10 @@ class NTCTicketAppPro:
             self.ticket_num_var.set(1)
 
     def generate_preview_text(self):
-        w = 42 # Font B fits 42 characters across 58mm paper
+        w = 42 
         border_top = "=" * w
         border_dashed = "-" * w
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
-        
-        # Combine prefix and padded number (e.g., S-001)
         num_str = f"{self.ticket_prefix_var.get()}-{self.ticket_num_var.get():03d}"
 
         lines = [border_top]
@@ -223,77 +269,61 @@ class NTCTicketAppPro:
         f1 = self.footer_1_var.get().strip()
         f2 = self.footer_2_var.get().strip()
         
-        # Combine prefix and padded number for printing (e.g., S-001)
         num_str = f"{self.ticket_prefix_var.get()}-{self.ticket_num_var.get():03d}"
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
 
         try:
             p = Dummy()
             p.set(align='center')
-            
-            w = 42 # 42 columns for Font B
+            w = 42 
 
-            # --- Smart Image Resizing (Extremely Small) ---
             if self.logo_enabled_var.get():
                 logo_path = self.logo_file_var.get().strip()
                 if os.path.exists(logo_path):
                     try:
                         img = Image.open(logo_path)
-                        max_width = 110  # Shrunk down to 110 pixels
-                        
+                        max_width = 110 
                         if img.width > max_width:
                             ratio = max_width / float(img.width)
                             new_height = int(float(img.height) * float(ratio))
                             img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-                        
                         p.image(img)
                     except Exception as img_err:
                         print(f"Logo resizing/printing error: {img_err}")
 
-            # Top Border (Font B - Compact)
             p.set(align='center', font='b', bold=False)
             p.text(("=" * w) + "\n")
 
-            # Headers (Font B)
             p.set(align='center', font='b', bold=self.bold_var.get())
             if h1: p.text(h1 + "\n")
             if h2: p.text(h2 + "\n")
 
-            # Date Line (Font B)
             p.set(align='center', font='b', bold=False)
             p.text(("-" * w) + "\n")
             p.text(now_str + "\n")
             p.text(("-" * w) + "\n")
 
-            # Queue Number Label
             p.text("QUEUE NO.\n")
 
-            # --- Ticket Number using 3x Width and 3x Height ---
             p.set(align='center', font='a', bold=True)
-            p.text("\x1d!\x22") # \x1d!\x22 translates to GS ! 34 (3x scaling)
+            p.text("\x1d!\x22") 
             p.text(num_str + "\n")
 
-            # --- Hard Reset Size ---
             p.text("\x1d!\x00") 
             
             p.set(align='center', font='b', bold=False)
             p.text(("-" * w) + "\n")
             
-            # Print footer instructions
             if f1: p.text(f1 + "\n")
             if f2: p.text(f2 + "\n")
             
-            # Bottom Border
             p.text(("=" * w) + "\n")
 
-            # Feed lines & Cut 
             p.text("\n\n")
             p.cut()
 
-            # Extract raw bytes
             raw_data = p.output
 
-            # Send to Spooler
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, ("NTC Ticket", None, "RAW"))
@@ -303,6 +333,14 @@ class NTCTicketAppPro:
                 win32print.EndDocPrinter(hPrinter)
             finally:
                 win32print.ClosePrinter(hPrinter)
+
+            # --- NEW: Save to Log upon successful print ---
+            self.print_log.append({
+                'time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                'ticket': num_str,
+                'dept': h2
+            })
+            self.update_log_display()
 
             # Auto Increment
             if self.auto_increment_var.get():
