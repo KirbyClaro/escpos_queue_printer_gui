@@ -24,8 +24,13 @@ class NTCTicketAppPro:
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
         self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
-        self.ticket_prefix_var = tk.StringVar(value="S") # Default to Single (S)
-        self.ticket_num_var = tk.IntVar(value=1)
+        # --- NEW: Independent Queue Memory ---
+        self.counters = {"S": 1, "M": 1, "P": 1}
+        self.last_prefix = "S"
+
+        self.ticket_prefix_var = tk.StringVar(value="S")
+        self.ticket_num_var = tk.IntVar(value=self.counters["S"])
+        
         self.auto_increment_var = tk.BooleanVar(value=True)
 
         self._build_ui()
@@ -68,13 +73,15 @@ class NTCTicketAppPro:
         f3 = ttk.LabelFrame(self.root, text=" 3. Ticket Control ", padding=10)
         f3.pack(fill="x", padx=15, pady=5)
 
-        # --- NEW: Transaction Type Prefix Selection ---
+        # Transaction Type Prefix Selection
         type_frame = ttk.Frame(f3)
         type_frame.pack(fill="x", pady=4)
         ttk.Label(type_frame, text="Transaction Type:").pack(side="left", padx=(0, 5))
-        ttk.Radiobutton(type_frame, text="Single (S)", variable=self.ticket_prefix_var, value="S").pack(side="left", padx=2)
-        ttk.Radiobutton(type_frame, text="Multiple (M)", variable=self.ticket_prefix_var, value="M").pack(side="left", padx=2)
-        ttk.Radiobutton(type_frame, text="Priority (P)", variable=self.ticket_prefix_var, value="P").pack(side="left", padx=2)
+        
+        # Commands added to swap memory automatically when clicked
+        ttk.Radiobutton(type_frame, text="Single (S)", variable=self.ticket_prefix_var, value="S", command=self.on_prefix_change).pack(side="left", padx=2)
+        ttk.Radiobutton(type_frame, text="Multiple (M)", variable=self.ticket_prefix_var, value="M", command=self.on_prefix_change).pack(side="left", padx=2)
+        ttk.Radiobutton(type_frame, text="Priority (P)", variable=self.ticket_prefix_var, value="P", command=self.on_prefix_change).pack(side="left", padx=2)
 
         ctrl_sub = ttk.Frame(f3)
         ctrl_sub.pack(fill="x", pady=4)
@@ -114,11 +121,23 @@ class NTCTicketAppPro:
                     self.ticket_num_var, self.ticket_prefix_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
 
-        # --- Trigger to update Window Title based on Department ---
+        # Trigger to update Window Title based on Department
         self.header_2_var.trace_add("write", self.update_window_title)
 
         self.update_window_title()
         self.update_preview()
+
+    def on_prefix_change(self):
+        new_prefix = self.ticket_prefix_var.get()
+        if new_prefix != self.last_prefix:
+            # 1. Save the current number to the OLD prefix's memory
+            self.counters[self.last_prefix] = self.ticket_num_var.get()
+            
+            # 2. Update the display to the NEW prefix's saved number
+            self.ticket_num_var.set(self.counters[new_prefix])
+            
+            # 3. Remember what we are currently looking at
+            self.last_prefix = new_prefix
 
     def update_window_title(self, *args):
         dept = self.header_2_var.get().strip()
