@@ -24,7 +24,7 @@ class NTCTicketAppPro:
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
         self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
-        # --- NEW: Independent Queue Memory ---
+        # Independent Queue Memory
         self.counters = {"S": 1, "M": 1, "P": 1}
         self.last_prefix = "S"
 
@@ -78,7 +78,6 @@ class NTCTicketAppPro:
         type_frame.pack(fill="x", pady=4)
         ttk.Label(type_frame, text="Transaction Type:").pack(side="left", padx=(0, 5))
         
-        # Commands added to swap memory automatically when clicked
         ttk.Radiobutton(type_frame, text="Single (S)", variable=self.ticket_prefix_var, value="S", command=self.on_prefix_change).pack(side="left", padx=2)
         ttk.Radiobutton(type_frame, text="Multiple (M)", variable=self.ticket_prefix_var, value="M", command=self.on_prefix_change).pack(side="left", padx=2)
         ttk.Radiobutton(type_frame, text="Priority (P)", variable=self.ticket_prefix_var, value="P", command=self.on_prefix_change).pack(side="left", padx=2)
@@ -93,6 +92,9 @@ class NTCTicketAppPro:
         ttk.Button(ctrl_sub, text="↺ Reset to 001", command=self.reset_num).pack(side="left", padx=10)
 
         ttk.Checkbutton(f3, text="Auto-increment after printing", variable=self.auto_increment_var).pack(anchor="w", pady=4)
+
+        # --- NEW: Master Reset Button ---
+        ttk.Button(f3, text="⚠️ Master Reset (End of Day)", command=self.master_reset).pack(fill="x", pady=(5, 0))
 
         # Print Button
         btn_frame = ttk.Frame(self.root)
@@ -138,6 +140,18 @@ class NTCTicketAppPro:
             
             # 3. Remember what we are currently looking at
             self.last_prefix = new_prefix
+
+    def master_reset(self):
+        # Confirmation pop-up for safety
+        confirm = messagebox.askyesno(
+            "Master Reset", 
+            "Are you sure you want to reset ALL queues (Single, Multiple, and Priority) back to 001?\n\nThis is usually done at the start of a new day."
+        )
+        if confirm:
+            # Wipe the memory bank clean
+            self.counters = {"S": 1, "M": 1, "P": 1}
+            # Reset the currently viewed number back to 1
+            self.ticket_num_var.set(1)
 
     def update_window_title(self, *args):
         dept = self.header_2_var.get().strip()
