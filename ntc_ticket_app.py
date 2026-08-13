@@ -16,14 +16,15 @@ class NTCTicketAppPro:
         # Variables
         self.printer_name_var = tk.StringVar(value="XP-58C")
         self.header_1_var = tk.StringVar(value="NTC - NCR")
-        self.header_2_var = tk.StringVar(value="LICENSING")
+        self.header_2_var = tk.StringVar(value="Licensing")
         self.bold_var = tk.BooleanVar(value=True)
         self.logo_enabled_var = tk.BooleanVar(value=True)
         self.logo_file_var = tk.StringVar(value="ntc.png")
 
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
-        self.footer_2_var = tk.StringVar(value="[Missed numbers require a new ticket.]") 
+        self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
+        self.ticket_prefix_var = tk.StringVar(value="S") # Default to Single (S)
         self.ticket_num_var = tk.IntVar(value=1)
         self.auto_increment_var = tk.BooleanVar(value=True)
 
@@ -45,7 +46,7 @@ class NTCTicketAppPro:
             f1, 
             textvariable=self.header_2_var, 
             width=25, 
-            values=["LICENSING", "CASHIER", "RELEASING"]
+            values=["Licensing", "Cashier", "Releasing"]
         )
         header_2_cb.grid(row=2, column=1, pady=2)
 
@@ -67,8 +68,16 @@ class NTCTicketAppPro:
         f3 = ttk.LabelFrame(self.root, text=" 3. Ticket Control ", padding=10)
         f3.pack(fill="x", padx=15, pady=5)
 
+        # --- NEW: Transaction Type Prefix Selection ---
+        type_frame = ttk.Frame(f3)
+        type_frame.pack(fill="x", pady=4)
+        ttk.Label(type_frame, text="Transaction Type:").pack(side="left", padx=(0, 5))
+        ttk.Radiobutton(type_frame, text="Single (S)", variable=self.ticket_prefix_var, value="S").pack(side="left", padx=2)
+        ttk.Radiobutton(type_frame, text="Multiple (M)", variable=self.ticket_prefix_var, value="M").pack(side="left", padx=2)
+        ttk.Radiobutton(type_frame, text="Priority (P)", variable=self.ticket_prefix_var, value="P").pack(side="left", padx=2)
+
         ctrl_sub = ttk.Frame(f3)
-        ctrl_sub.pack(fill="x", pady=2)
+        ctrl_sub.pack(fill="x", pady=4)
 
         ttk.Label(ctrl_sub, text="Current Number:").pack(side="left")
         ttk.Button(ctrl_sub, text="-", width=3, command=self.decrement_num).pack(side="left", padx=4)
@@ -102,7 +111,7 @@ class NTCTicketAppPro:
 
         # Triggers
         for var in [self.header_1_var, self.header_2_var, self.footer_1_var, self.footer_2_var, 
-                    self.ticket_num_var, self.logo_enabled_var, self.logo_file_var]:
+                    self.ticket_num_var, self.ticket_prefix_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
 
         # --- Trigger to update Window Title based on Department ---
@@ -133,7 +142,9 @@ class NTCTicketAppPro:
         border_top = "=" * w
         border_dashed = "-" * w
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
-        num_str = f"{self.ticket_num_var.get():03d}"
+        
+        # Combine prefix and padded number (e.g., S-001)
+        num_str = f"{self.ticket_prefix_var.get()}-{self.ticket_num_var.get():03d}"
 
         lines = [border_top]
         if self.logo_enabled_var.get():
@@ -171,7 +182,9 @@ class NTCTicketAppPro:
         h2 = self.header_2_var.get().strip()
         f1 = self.footer_1_var.get().strip()
         f2 = self.footer_2_var.get().strip()
-        num_str = f"{self.ticket_num_var.get():03d}"
+        
+        # Combine prefix and padded number for printing (e.g., S-001)
+        num_str = f"{self.ticket_prefix_var.get()}-{self.ticket_num_var.get():03d}"
         now_str = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
 
         try:
