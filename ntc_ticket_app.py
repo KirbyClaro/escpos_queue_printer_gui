@@ -11,7 +11,7 @@ class NTCTicketAppPro:
     def __init__(self, root):
         self.root = root
         self.root.title("NTC Ticket Generator Pro")
-        self.root.geometry("480x920") 
+        self.root.geometry("480x920")
         self.root.resizable(False, False)
 
         # Variables
@@ -25,15 +25,16 @@ class NTCTicketAppPro:
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
         self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
-        # Independent Queue Memory
-        self.counters = {"S": 1, "M": 1, "P": 1}
-        self.last_prefix = "S"
+        # --- UPDATED: Shared Queue Memory ---
+        # "Regular" handles both Single (S) and Multiple (M). "Priority" handles (P).
+        self.counters = {"Regular": 1, "Priority": 1}
+        self.last_queue_type = "Regular"
 
         self.ticket_prefix_var = tk.StringVar(value="S")
-        self.ticket_num_var = tk.IntVar(value=self.counters["S"])
+        self.ticket_num_var = tk.IntVar(value=self.counters["Regular"])
         self.auto_increment_var = tk.BooleanVar(value=True)
 
-        # --- NEW: Daily Log Storage ---
+        # Daily Log Storage
         self.print_log = []
 
         self._build_ui()
@@ -121,7 +122,7 @@ class NTCTicketAppPro:
         self.preview_text = tk.Text(f4, height=12, width=44, font=("Consolas", 9), bg="#F8F9FA")
         self.preview_text.pack(fill="both", expand=True)
 
-        # --- NEW: 5. Recent Logs & Export ---
+        # 5. Recent Logs & Export
         f5 = ttk.LabelFrame(self.root, text=" Recent Prints & Log Export ", padding=10)
         f5.pack(fill="x", padx=15, pady=5)
 
@@ -142,7 +143,6 @@ class NTCTicketAppPro:
         self.update_preview()
         self.update_log_display()
 
-    # --- NEW: CSV Export Logic ---
     def export_csv(self):
         if not self.print_log:
             messagebox.showinfo("Export Empty", "There are no printed tickets to export yet.")
@@ -160,46 +160,48 @@ class NTCTicketAppPro:
             try:
                 with open(filepath, mode='w', newline='', encoding='utf-8') as f:
                     writer = csv.writer(f)
-                    # Write Header Row
                     writer.writerow(["Timestamp", "Ticket Number", "Department", "Transaction Type"])
-                    # Write Data
                     for log in self.print_log:
-                        # Extract the prefix letter to name the transaction type
                         prefix = log['ticket'][0] 
                         trans_type = "Single" if prefix == 'S' else "Multiple" if prefix == 'M' else "Priority"
-                        
                         writer.writerow([log['time'], log['ticket'], log['dept'], trans_type])
                         
                 messagebox.showinfo("Export Success", f"Log successfully saved to:\n{filepath}")
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to save CSV.\n\n{e}")
 
-    # --- NEW: Log UI Updater ---
     def update_log_display(self):
         self.log_listbox.delete(0, tk.END)
         if not self.print_log:
             self.log_listbox.insert(tk.END, " No tickets printed yet...")
             return
             
-        # Get last 5 items, reversed so the newest is at the top
         recent = list(reversed(self.print_log[-5:]))
         for item in recent:
             self.log_listbox.insert(tk.END, f" ✅ {item['time']} | {item['ticket']} | {item['dept']}")
 
     def on_prefix_change(self):
+        # --- UPDATED: Route S and M to the same "Regular" memory bank ---
         new_prefix = self.ticket_prefix_var.get()
-        if new_prefix != self.last_prefix:
-            self.counters[self.last_prefix] = self.ticket_num_var.get()
-            self.ticket_num_var.set(self.counters[new_prefix])
-            self.last_prefix = new_prefix
+        new_queue_type = "Regular" if new_prefix in ["S", "M"] else "Priority"
+
+        if new_queue_type != self.last_queue_type:
+            # Save the current number to the OLD queue type's memory
+            self.counters[self.last_queue_type] = self.ticket_num_var.get()
+            
+            # Update the display to the NEW queue type's saved number
+            self.ticket_num_var.set(self.counters[new_queue_type])
+            
+            # Remember the new queue type
+            self.last_queue_type = new_queue_type
 
     def master_reset(self):
         confirm = messagebox.askyesno(
             "Master Reset", 
-            "Are you sure you want to reset ALL queues (Single, Multiple, and Priority) back to 001?\n\nThis is usually done at the start of a new day."
+            "Are you sure you want to reset ALL queues (Regular and Priority) back to 001?\n\nThis is usually done at the start of a new day."
         )
         if confirm:
-            self.counters = {"S": 1, "M": 1, "P": 1}
+            self.counters = {"Regular": 1, "Priority": 1}
             self.ticket_num_var.set(1)
 
     def update_window_title(self, *args):
@@ -218,9 +220,11 @@ class NTCTicketAppPro:
 
     def reset_num(self):
         current_prefix = self.ticket_prefix_var.get()
+        q_name = "Regular (Single/Multiple)" if current_prefix in ["S", "M"] else "Priority"
+        
         confirm = messagebox.askyesno(
             "Reset Current Queue", 
-            f"Are you sure you want to reset the '{current_prefix}' queue back to 001?"
+            f"Are you sure you want to reset the {q_name} queue back to 001?"
         )
         if confirm:
             self.ticket_num_var.set(1)
@@ -334,7 +338,6 @@ class NTCTicketAppPro:
             finally:
                 win32print.ClosePrinter(hPrinter)
 
-            # --- NEW: Save to Log upon successful print ---
             self.print_log.append({
                 'time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 'ticket': num_str,
@@ -342,7 +345,6 @@ class NTCTicketAppPro:
             })
             self.update_log_display()
 
-            # Auto Increment
             if self.auto_increment_var.get():
                 self.increment_num()
 
