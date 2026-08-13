@@ -93,7 +93,7 @@ class NTCTicketAppPro:
 
         ttk.Checkbutton(f3, text="Auto-increment after printing", variable=self.auto_increment_var).pack(anchor="w", pady=4)
 
-        # --- NEW: Master Reset Button ---
+        # Master Reset Button
         ttk.Button(f3, text="⚠️ Master Reset (End of Day)", command=self.master_reset).pack(fill="x", pady=(5, 0))
 
         # Print Button
@@ -168,7 +168,14 @@ class NTCTicketAppPro:
             self.ticket_num_var.set(self.ticket_num_var.get() - 1)
 
     def reset_num(self):
-        self.ticket_num_var.set(1)
+        # --- UPDATED: Individual Queue Reset Confirmation ---
+        current_prefix = self.ticket_prefix_var.get()
+        confirm = messagebox.askyesno(
+            "Reset Current Queue", 
+            f"Are you sure you want to reset the '{current_prefix}' queue back to 001?"
+        )
+        if confirm:
+            self.ticket_num_var.set(1)
 
     def generate_preview_text(self):
         w = 42 # Font B fits 42 characters across 58mm paper
