@@ -25,12 +25,13 @@ class NTCTicketAppPro:
         self.footer_1_var = tk.StringVar(value="Please wait for your number")
         self.footer_2_var = tk.StringVar(value="Missed numbers require a new ticket.") 
 
-        # --- UPDATED: Comprehensive Queue Memory ---
+        # --- UPDATED: 5 Independent Memory Banks ---
         self.counters = {
-            "Regular": 1,   # Shared by Single (S) and Multiple (M)
-            "Priority": 1,  # Priority (P)
-            "New": 1,       # Licensing (N)
-            "Releasing": 1  # Releasing (R)
+            "Single": 1,
+            "Multiple": 1,
+            "Priority": 1,
+            "New": 1,
+            "Releasing": 1
         }
         
         self.ticket_prefix_var = tk.StringVar(value="N") # Default for Licensing
@@ -82,11 +83,11 @@ class NTCTicketAppPro:
         f3 = ttk.LabelFrame(self.root, text=" 3. Ticket Control ", padding=10)
         f3.pack(fill="x", padx=15, pady=5)
 
-        # --- NEW: Dynamic Transaction Type Frame ---
+        # Dynamic Transaction Type Frame
         type_frame = ttk.Frame(f3)
         type_frame.pack(fill="x", pady=4)
         ttk.Label(type_frame, text="Transaction Type:").pack(side="left", padx=(0, 5))
-        self.radio_frame = ttk.Frame(type_frame) # Container for dynamic buttons
+        self.radio_frame = ttk.Frame(type_frame) 
         self.radio_frame.pack(side="left")
 
         ctrl_sub = ttk.Frame(f3)
@@ -139,44 +140,38 @@ class NTCTicketAppPro:
                     self.ticket_num_var, self.ticket_prefix_var, self.logo_enabled_var, self.logo_file_var]:
             var.trace_add("write", self.update_preview)
 
-        # --- UPDATED: Trigger Department Changes ---
+        # Trigger Department Changes
         self.header_2_var.trace_add("write", self.on_department_change)
 
-        self.on_department_change() # Initialize dynamic UI
+        self.on_department_change() 
         self.update_log_display()
 
-    # --- NEW: Helper method to map prefixes to Memory Banks ---
     def get_queue_name(self, prefix):
-        if prefix in ["S", "M"]: return "Regular"
+        if prefix == "S": return "Single"
+        elif prefix == "M": return "Multiple"
         elif prefix == "P": return "Priority"
         elif prefix == "N": return "New"
         elif prefix == "R": return "Releasing"
-        return "Regular"
+        return "Single"
 
-    # --- NEW: Dynamically render radio buttons based on department ---
     def on_department_change(self, *args):
         self.update_window_title()
         
-        # Clear old radio buttons
         for widget in self.radio_frame.winfo_children():
             widget.destroy()
             
         dept = self.header_2_var.get().strip().lower()
         
-        # Determine available options based on department
         if dept == "licensing":
             options = [("New (N)", "N"), ("Priority (P)", "P")]
         elif dept == "releasing":
             options = [("Releasing (R)", "R"), ("Priority (P)", "P")]
         else:
-            # Default fallback (Cashier & Custom inputs)
             options = [("Single (S)", "S"), ("Multiple (M)", "M"), ("Priority (P)", "P")]
             
-        # Re-draw the buttons
         for text, val in options:
             ttk.Radiobutton(self.radio_frame, text=text, variable=self.ticket_prefix_var, value=val, command=self.on_prefix_change).pack(side="left", padx=2)
             
-        # Ensure current prefix is valid for the new department. If not, auto-switch to the first valid one.
         valid_prefixes = [val for text, val in options]
         if self.ticket_prefix_var.get() not in valid_prefixes:
             self.ticket_prefix_var.set(valid_prefixes[0])
@@ -209,15 +204,7 @@ class NTCTicketAppPro:
                     writer.writerow(["Timestamp", "Ticket Number", "Department", "Transaction Type"])
                     for log in self.print_log:
                         prefix = log['ticket'][0] 
-                        
-                        # Friendly names for the CSV log
-                        if prefix == 'S': trans_type = "Single"
-                        elif prefix == 'M': trans_type = "Multiple"
-                        elif prefix == 'P': trans_type = "Priority"
-                        elif prefix == 'N': trans_type = "New"
-                        elif prefix == 'R': trans_type = "Releasing"
-                        else: trans_type = "Regular"
-
+                        trans_type = self.get_queue_name(prefix)
                         writer.writerow([log['time'], log['ticket'], log['dept'], trans_type])
                         
                 messagebox.showinfo("Export Success", f"Log successfully saved to:\n{filepath}")
@@ -251,10 +238,10 @@ class NTCTicketAppPro:
     def master_reset(self):
         confirm = messagebox.askyesno(
             "Master Reset", 
-            "Are you sure you want to reset ALL queues (Regular, Priority, New, Releasing) back to 001?\n\nThis is usually done at the start of a new day."
+            "Are you sure you want to reset ALL queues (Single, Multiple, Priority, New, Releasing) back to 001?\n\nThis is usually done at the start of a new day."
         )
         if confirm:
-            self.counters = {k: 1 for k in self.counters} # Resets all dictionary values to 1
+            self.counters = {k: 1 for k in self.counters} 
             self.ticket_num_var.set(1)
 
     def increment_num(self):
